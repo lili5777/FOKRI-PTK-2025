@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - FOKRI PTK</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            background: linear-gradient(to bottom right, #e0f7fa, #ffffff);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: #333;
+            padding: 20px;
+        }
+
+        .login-container {
+            display: flex;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            max-width: 800px; /* Sedikit lebih kecil dari registrasi */
+            width: 100%;
+            min-height: 500px;
+        }
+
+        .illustration-section {
+            flex: 1;
+            background: linear-gradient(135deg, #64b5f6, #a7d9f7);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+            text-align: center;
+        }
+
+        .illustration-section img {
+            max-width: 80%;
+            height: auto;
+            display: block;
+            object-fit: contain;
+            margin-bottom: 20px;
+        }
+
+        .illustration-section .moto-text {
+            color: white;
+            font-size: 24px;
+            font-weight: 700;
+            line-height: 1.4;
+            text-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+        }
+        .illustration-section .sub-moto-text {
+            color: #e0f7fa;
+            font-size: 16px;
+            margin-top: 10px;
+            line-height: 1.5;
+            max-width: 80%;
+        }
+
+        .login-form-section {
+            flex: 1;
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .login-form-section h2 {
+            font-size: 32px;
+            color: #1e3a8a;
+            margin-bottom: 10px;
+            font-weight: 800;
+        }
+
+        .login-form-section p.slogan {
+            font-size: 16px;
+            color: #666;
+            margin-bottom: 30px;
+            text-align: center;
+            line-height: 1.6;
+        }
+
+        .form-group {
+            width: 100%;
+            margin-bottom: 20px;
+            text-align: left;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #444;
+            font-size: 15px;
+        }
+
+        .form-group input[type="email"],
+        .form-group input[type="password"] {
+            width: 100%;
+            padding: 14px 18px;
+            border: 1px solid #d1e9f7;
+            border-radius: 10px;
+            font-size: 16px;
+            outline: none;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .form-group input:focus {
+            border-color: #64b5f6;
+            box-shadow: 0 0 0 4px rgba(100, 181, 246, 0.2);
+        }
+
+        .options-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            margin-bottom: 25px;
+        }
+
+        .remember-me {
+            display: flex;
+            align-items: center;
+            font-size: 14px;
+            color: #555;
+        }
+
+        .remember-me input[type="checkbox"] {
+            margin-right: 8px;
+            accent-color: #1e3a8a; /* Warna checkbox */
+            width: 16px;
+            height: 16px;
+        }
+
+        .forgot-password a {
+            color: #1e3a8a;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 14px;
+            transition: color 0.3s ease;
+        }
+
+        .forgot-password a:hover {
+            color: #1a2f6b;
+            text-decoration: underline;
+        }
+
+        .login-button {
+            width: 100%;
+            padding: 15px;
+            background: #1e3a8a;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.3s ease, transform 0.2s ease;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.15);
+        }
+
+        .login-button:hover {
+            background: #1a2f6b;
+            transform: translateY(-2px);
+        }
+
+        .register-link {
+            margin-top: 25px;
+            font-size: 15px;
+            color: #555;
+        }
+
+        .register-link a {
+            color: #1e3a8a;
+            text-decoration: none;
+            font-weight: 600;
+            transition: color 0.3s ease;
+        }
+
+        .register-link a:hover {
+            color: #1a2f6b;
+            text-decoration: underline;
+        }
+
+        /* Responsif */
+        @media (max-width: 768px) {
+            .login-container {
+                flex-direction: column;
+                max-width: 450px;
+                min-height: unset;
+            }
+            .illustration-section {
+                min-height: 250px;
+                order: -1;
+                padding: 30px 20px;
+            }
+            .illustration-section img {
+                max-width: 60%;
+                margin-bottom: 15px;
+            }
+            .illustration-section .moto-text {
+                font-size: 20px;
+            }
+            .illustration-section .sub-moto-text {
+                font-size: 14px;
+            }
+            .login-form-section {
+                padding: 30px 25px;
+            }
+            .login-form-section h2 {
+                font-size: 28px;
+            }
+            .login-form-section p.slogan {
+                font-size: 15px;
+                margin-bottom: 20px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .login-form-section {
+                padding: 25px 20px;
+            }
+            .login-form-section h2 {
+                font-size: 24px;
+            }
+            .form-group label {
+                font-size: 14px;
+            }
+            .form-group input {
+                padding: 12px 15px;
+                font-size: 15px;
+            }
+            .login-button {
+                padding: 12px;
+                font-size: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="illustration-section">
+            <img src="https://assets.pikiran-rakyat.com/crop/70x34:700x498/1200x675/photo/2023/03/30/3406045965.png" alt="Ilustrasi FOKRI">
+            <h3 class="moto-text">FOKRI PTK 2025</h3>
+            <p class="sub-moto-text">Forum Komunikasi Rohani Islam Perguruan Tinggi Kedinasan. Membina insan bertakwa, cerdas, dan berkontribusi.</p>
+        </div>
+        <div class="login-form-section">
+            <img src="https://yt3.googleusercontent.com/ytc/AIdro_lr1TjnNBLohQi12b3sN5GnZg3ClW8h91aJxAN8D6Kf5Fc=s900-c-k-c0x00ffffff-no-rj" alt="Logo FOKRI PTK" style="height: 60px; margin-bottom: 20px; border-radius: 50%;">
+            <h2>Selamat Datang!</h2>
+            <p class="slogan">Silakan masuk ke akun Anda untuk melanjutkan.</p>
+
+            <div class="form-group">
+                <label for="loginEmail">Email</label>
+                <input type="email" id="loginEmail" placeholder="Masukkan email Anda" required>
+            </div>
+            <div class="form-group">
+                <label for="loginPassword">Password</label>
+                <input type="password" id="loginPassword" placeholder="Masukkan password Anda" required>
+            </div>
+
+            <div class="options-row">
+                <div class="remember-me">
+                    <input type="checkbox" id="rememberMe">
+                    <label for="rememberMe">Ingat saya</label>
+                </div>
+                <div class="forgot-password">
+                    <a href="reset_password.php">Lupa Password?</a>
+                </div>
+            </div>
+
+            <button class="login-button" onclick="handleLogin()">Log In</button>
+            <p class="register-link">Belum punya akun? <a href="Registrasi.php">Daftar Sekarang</a></p>
+        </div>
+    </div>
+
+    <script>
+        // Sesuaikan URL ini dengan lokasi file api_login.php Anda di server XAMPP/WAMP
+        const API_URL_LOGIN = 'http://localhost/fokri/api_login.php'; 
+
+        async function handleLogin() {
+            const email = document.getElementById('loginEmail').value.trim();
+            const password = document.getElementById('loginPassword').value.trim();
+            const rememberMe = document.getElementById('rememberMe').checked;
+
+            if (!email || !password) {
+                alert("Email dan password harus diisi.");
+                return;
+            }
+
+            const loginData = {
+                email: email,
+                password: password
+            };
+
+            try {
+                const response = await fetch(API_URL_LOGIN, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(loginData)
+                });
+
+                const result = await response.json();
+
+                if (result.status === "success") {
+                    alert(result.message);
+                    // Simpan informasi user di sessionStorage atau localStorage jika login berhasil
+                    if (rememberMe) {
+                        localStorage.setItem('currentUser', JSON.stringify(result.user));
+                    } else {
+                        sessionStorage.setItem('currentUser', JSON.stringify(result.user));
+                    }
+                    
+                    // Logika pengalihan halaman berdasarkan email
+                    if (email === 'FokriPTKIndonesia@gmail.com') {
+                        window.location.href = "Frontend.php"; // Redirect admin ke admin frontend
+                    } else {
+                        window.location.href = "user_frontend.php"; // Redirect user biasa ke user frontend
+                    }
+                } else {
+                    alert("Error: " + result.message); // Menampilkan pesan error dari server
+                }
+            } catch (error) {
+                console.error('Error saat login:', error);
+                alert("Terjadi masalah saat mencoba login. Silakan coba lagi.");
+            }
+        }
+    </script>
+</body>
+</html>
