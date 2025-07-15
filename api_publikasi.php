@@ -1,31 +1,44 @@
 <?php
-header('Content-Type: application/json'); // Memberi tahu browser bahwa responsnya adalah JSON
-header('Access-Control-Allow-Origin: *'); // Mengizinkan semua domain untuk mengakses (untuk pengembangan)
-header('Access-Control-Allow-Methods: GET, POST, DELETE, PUT, OPTIONS'); // Menambahkan PUT karena mungkin akan digunakan untuk update
-header('Access-Control-Allow-Headers: Content-Type, Authorization'); // Header yang diizinkan
+// Disable error reporting to prevent HTML error output
+error_reporting(0);
+ini_set('display_errors', 0);
 
-// Handle preflight OPTIONS request (penting untuk CORS)
+header('Content-Type: application/json');
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: GET, POST, DELETE, PUT, OPTIONS, PATCH');
+header('Access-Control-Allow-Headers: Content-Type, Authorization');
+header('Access-Control-Allow-Credentials: true');
+
+// Handle preflight OPTIONS request
 if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
     http_response_code(200);
     exit();
 }
 
-// Konfigurasi Database
-$servername = "localhost"; // Biasanya localhost jika PHP dan MySQL di server yang sama
-$username = "root";       // Ganti dengan username database Anda
-$password = "";           // Ganti dengan password database Anda (kosong jika tidak ada)
-$dbname = "fokri";        // Nama database yang sudah Anda buat di phpMyAdmin
+// Database configuration
+$servername = "localhost";
+$username = "root";
+$password = "";
+$dbname = "fokri";
 
-// Buat koneksi ke database
-$conn = new mysqli($servername, $username, $password, $dbname);
+// Create database connection
+try {
+    $conn = new mysqli($servername, $username, $password, $dbname);
 
-// Cek koneksi
-if ($conn->connect_error) {
-    die(json_encode(["success" => false, "message" => "Koneksi database gagal: " . $conn->connect_error]));
+    if ($conn->connect_error) {
+        throw new Exception("Database connection failed: " . $conn->connect_error);
+    }
+
+    $conn->set_charset("utf8");
+} catch (Exception $e) {
+    sendResponse(500, false, "Database connection error: " . $e->getMessage());
 }
 
-// Fungsi helper untuk mengirim respons JSON
-function sendResponse($status_code, $success, $message, $data = []) {
+session_start();
+
+// Helper function to send JSON response
+function sendResponse($status_code, $success, $message, $data = [])
+{
     http_response_code($status_code);
     echo json_encode([
         "success" => $success,
@@ -39,103 +52,136 @@ $method = $_SERVER['REQUEST_METHOD'];
 
 switch ($method) {
     case 'GET':
-        $sql = "SELECT id, judul, isi, tanggal, gambar_url, dokumen_url, youtube_link FROM publikasi ORDER BY id DESC";
-        $result = $conn->query($sql);
+        if (isset($_GET['check-like'])) {
+            $user_id = $_SESSION['user']['user_id'] ?? null;
+            $publikasi_id = $_GET['id'] ?? null;
 
-        $publikasi = [];
-        if ($result->num_rows > 0) {
-            while($row = $result->fetch_assoc()) {
-                $publikasi[] = $row;
+            if (!$user_id) {
+                sendResponse(401, false, 'Not logged in');
+            }
+
+            if (!$publikasi_id) {
+                sendResponse(400, false, 'Publication ID required');
+            }
+
+            try {
+                $stmt = $conn->prepare("SELECT id FROM publikasi_likes WHERE id_publikasi = ? AND id_user = ?");
+                $stmt->bind_param("ii", $publikasi_id, $user_id);
+                $stmt->execute();
+                $stmt->store_result();
+
+                sendResponse(200, true, '', ['hasLiked' => $stmt->num_rows > 0]);
+            } catch (Exception $e) {
+                sendResponse(500, false, 'Error checking like status: ' . $e->getMessage());
+            }
+        } else {
+            // Get all publications
+            try {
+                $sql = "SELECT id, judul, isi, tanggal, gambar_url, dokumen_url, youtube_link, view_count, like_count FROM publikasi ORDER BY id DESC";
+                $result = $conn->query($sql);
+
+                $publikasi = [];
+                if ($result->num_rows > 0) {
+                    while ($row = $result->fetch_assoc()) {
+                        $publikasi[] = $row;
+                    }
+                }
+                sendResponse(200, true, "Data publikasi berhasil diambil.", $publikasi);
+            } catch (Exception $e) {
+                sendResponse(500, false, 'Error fetching publications: ' . $e->getMessage());
             }
         }
-        sendResponse(200, true, "Data publikasi berhasil diambil.", $publikasi);
         break;
 
     case 'POST':
-        $judul = $_POST['judul'] ?? '';
-        $isi = $_POST['isi'] ?? '';
-        $youtube_link = $_POST['youtube_link'] ?? NULL;
-        $gambar_url = NULL;
-        $dokumen_url = NULL;
-        $tanggal = date('Y-m-d H:i:s'); // Tambahkan tanggal saat ini
+        try {
+            $judul = $_POST['judul'] ?? '';
+            $isi = $_POST['isi'] ?? '';
+            $youtube_link = $_POST['youtube_link'] ?? NULL;
+            $gambar_url = NULL;
+            $dokumen_url = NULL;
+            $tanggal = date('Y-m-d H:i:s');
 
-        // Penanganan Upload Gambar
-        if (isset($_FILES['gambar_publikasi']) && $_FILES['gambar_publikasi']['error'] === UPLOAD_ERR_OK) {
-            $uploadDir = 'uploads/gambar/';
-            if (!is_dir($uploadDir)) {
-                mkdir($uploadDir, 0777, true);
+            // Image upload handling
+            if (isset($_FILES['gambar_publikasi']) && $_FILES['gambar_publikasi']['error'] === UPLOAD_ERR_OK) {
+                $uploadDir = 'uploads/gambar/';
+                if (!is_dir($uploadDir)) {
+                    mkdir($uploadDir, 0777, true);
+                }
+                $gambarFileName = uniqid('img_') . '_' . basename($_FILES['gambar_publikasi']['name']);
+                $gambarFilePath = $uploadDir . $gambarFileName;
+
+                if (move_uploaded_file($_FILES['gambar_publikasi']['tmp_name'], $gambarFilePath)) {
+                    $gambar_url = $gambarFilePath;
+                } else {
+                    sendResponse(500, false, 'Gagal mengunggah gambar.');
+                }
             }
-            $gambarFileName = uniqid('img_') . '_' . basename($_FILES['gambar_publikasi']['name']);
-            $gambarFilePath = $uploadDir . $gambarFileName;
 
-            if (move_uploaded_file($_FILES['gambar_publikasi']['tmp_name'], $gambarFilePath)) {
-                $gambar_url = $gambarFilePath;
+            // Document upload handling
+            if (isset($_FILES['dokumen_publikasi']) && $_FILES['dokumen_publikasi']['error'] === UPLOAD_ERR_OK) {
+                $uploadDir = 'uploads/dokumen/';
+                if (!is_dir($uploadDir)) {
+                    mkdir($uploadDir, 0777, true);
+                }
+                $dokumenFileName = uniqid('doc_') . '_' . basename($_FILES['dokumen_publikasi']['name']);
+                $dokumenFilePath = $uploadDir . $dokumenFileName;
+
+                if (move_uploaded_file($_FILES['dokumen_publikasi']['tmp_name'], $dokumenFilePath)) {
+                    $dokumen_url = $dokumenFilePath;
+                } else {
+                    sendResponse(500, false, 'Gagal mengunggah dokumen.');
+                }
+            }
+
+            // SQL Query
+            $sql = "INSERT INTO publikasi (judul, isi, tanggal, gambar_url, dokumen_url, youtube_link) VALUES (?, ?, ?, ?, ?, ?)";
+            $stmt = $conn->prepare($sql);
+
+            if ($stmt === false) {
+                throw new Exception('Failed to prepare statement: ' . $conn->error);
+            }
+
+            $stmt->bind_param("ssssss", $judul, $isi, $tanggal, $gambar_url, $dokumen_url, $youtube_link);
+
+            if ($stmt->execute()) {
+                sendResponse(201, true, 'Publikasi berhasil ditambahkan!', ['id' => $stmt->insert_id]);
             } else {
-                sendResponse(500, false, 'Gagal mengunggah gambar.');
+                throw new Exception('Failed to execute statement: ' . $stmt->error);
             }
+        } catch (Exception $e) {
+            sendResponse(500, false, 'Error creating publication: ' . $e->getMessage());
         }
-
-        // Penanganan Upload Dokumen
-        if (isset($_FILES['dokumen_publikasi']) && $_FILES['dokumen_publikasi']['error'] === UPLOAD_ERR_OK) {
-            $uploadDir = 'uploads/dokumen/';
-            if (!is_dir($uploadDir)) {
-                mkdir($uploadDir, 0777, true);
-            }
-            $dokumenFileName = uniqid('doc_') . '_' . basename($_FILES['dokumen_publikasi']['name']);
-            $dokumenFilePath = $uploadDir . $dokumenFileName;
-
-            if (move_uploaded_file($_FILES['dokumen_publikasi']['tmp_name'], $dokumenFilePath)) {
-                $dokumen_url = $dokumenFilePath;
-            } else {
-                sendResponse(500, false, 'Gagal mengunggah dokumen.');
-            }
-        }
-
-        // Kueri SQL
-        $sql = "INSERT INTO publikasi (judul, isi, tanggal, gambar_url, dokumen_url, youtube_link) 
-            VALUES (?, ?, ?, ?, ?, ?)";
-        $stmt = $conn->prepare($sql);
-
-        if ($stmt === false) {
-            sendResponse(500, false, 'Gagal menyiapkan statement: ' . $conn->error);
-        }
-
-        $stmt->bind_param("ssssss", $judul, $isi, $tanggal, $gambar_url, $dokumen_url, $youtube_link);
-
-        if ($stmt->execute()) {
-            sendResponse(201, true, 'Publikasi berhasil ditambahkan!', ['id' => $stmt->insert_id]);
-        } else {
-            sendResponse(500, false, 'Gagal menambahkan publikasi: ' . $stmt->error);
-        }
-        $stmt->close();
         break;
 
     case 'DELETE':
-        // Menghapus publikasi berdasarkan ID
-        $id = $_GET['id'] ?? null; // Ambil ID dari parameter query string
+        try {
+            $id = $_GET['id'] ?? null;
 
-        if ($id) {
+            if (!$id) {
+                sendResponse(400, false, 'ID publikasi tidak diberikan.');
+            }
 
-            $stmt_select = $conn->prepare("SELECT gambar_url, dokumen_url FROM publikasi WHERE id= ?");
+            // Get file paths before deletion
+            $stmt_select = $conn->prepare("SELECT gambar_url, dokumen_url FROM publikasi WHERE id = ?");
             $stmt_select->bind_param("i", $id);
             $stmt_select->execute();
             $result = $stmt_select->get_result();
             $row = $result->fetch_assoc();
-            $stmt_select->close();
 
             if ($row) {
-                // Hapus gambar jika ada
+                // Delete image file if exists
                 if (!empty($row['gambar_url']) && file_exists($row['gambar_url'])) {
                     unlink($row['gambar_url']);
                 }
-                // Hapus dokumen jika ada
+                // Delete document file if exists
                 if (!empty($row['dokumen_url']) && file_exists($row['dokumen_url'])) {
                     unlink($row['dokumen_url']);
                 }
             }
 
-            // Menyesuaikan nama kolom di DELETE statement
-            $sql = "DELETE FROM publikasi WHERE id= ?";
+            // Delete from database
+            $sql = "DELETE FROM publikasi WHERE id = ?";
             $stmt = $conn->prepare($sql);
             $stmt->bind_param("i", $id);
 
@@ -146,53 +192,134 @@ switch ($method) {
                     sendResponse(404, false, 'Publikasi tidak ditemukan.');
                 }
             } else {
-                sendResponse(500, false, 'Gagal menghapus publikasi: ' . $stmt->error);
+                throw new Exception('Failed to delete publication: ' . $stmt->error);
             }
-            $stmt->close();
-        } else {
-            sendResponse(400, false, 'ID publikasi tidak diberikan.');
+        } catch (Exception $e) {
+            sendResponse(500, false, 'Error deleting publication: ' . $e->getMessage());
         }
         break;
 
-    // Tambahkan case 'PUT' jika Anda ingin fungsi update
     case 'PUT':
-        $data = json_decode(file_get_contents("php://input"), true);
-        $id = $data['id'] ?? null;
-        $judul = $data['judul'] ?? '';
-        $isi = $data['isi'] ?? '';
-        $youtube_link = $data['youtube_link'] ?? NULL;
+        try {
+            $data = json_decode(file_get_contents("php://input"), true);
+            $id = $data['id'] ?? null;
+            $judul = $data['judul'] ?? '';
+            $isi = $data['isi'] ?? '';
+            $youtube_link = $data['youtube_link'] ?? NULL;
 
-        if (!$id) {
-            sendResponse(400, false, 'ID publikasi tidak diberikan untuk update.');
-        }
-
-        $sql = "UPDATE publikasi SET judul=?, isi=?, youtube_link=? WHERE id=?";
-        $stmt = $conn->prepare($sql);
-
-        if ($stmt === false) {
-            sendResponse(500, false, 'Gagal menyiapkan statement UPDATE: ' . $conn->error);
-        }
-
-        // Tipe parameter: sssi (4 string + 1 integer)
-        $stmt->bind_param("sssi", $judul, $isi, $youtube_link, $id);
-
-        if ($stmt->execute()) {
-            if ($stmt->affected_rows > 0) {
-                sendResponse(200, true, 'Publikasi berhasil diperbarui!');
-            } else {
-                sendResponse(200, true, 'Tidak ada perubahan pada publikasi atau publikasi tidak ditemukan.');
+            if (!$id) {
+                sendResponse(400, false, 'ID publikasi tidak diberikan untuk update.');
             }
-        } else {
-            sendResponse(500, false, 'Gagal memperbarui publikasi: ' . $stmt->error);
+
+            $sql = "UPDATE publikasi SET judul=?, isi=?, youtube_link=? WHERE id=?";
+            $stmt = $conn->prepare($sql);
+
+            if ($stmt === false) {
+                throw new Exception('Failed to prepare UPDATE statement: ' . $conn->error);
+            }
+
+            $stmt->bind_param("sssi", $judul, $isi, $youtube_link, $id);
+
+            if ($stmt->execute()) {
+                if ($stmt->affected_rows > 0) {
+                    sendResponse(200, true, 'Publikasi berhasil diperbarui!');
+                } else {
+                    sendResponse(200, true, 'Tidak ada perubahan pada publikasi atau publikasi tidak ditemukan.');
+                }
+            } else {
+                throw new Exception('Failed to update publication: ' . $stmt->error);
+            }
+        } catch (Exception $e) {
+            sendResponse(500, false, 'Error updating publication: ' . $e->getMessage());
         }
-        $stmt->close();
+        break;
+
+    case 'PATCH':
+        try {
+            $data = json_decode(file_get_contents("php://input"), true);
+            $id = $data['id'] ?? null;
+            $action = $data['action'] ?? null;
+
+            if (!$id || !$action) {
+                sendResponse(400, false, 'ID dan aksi diperlukan');
+            }
+
+            if ($action === 'view') {
+                $sql = "UPDATE publikasi SET view_count = COALESCE(view_count, 0) + 1 WHERE id = ?";
+                $stmt = $conn->prepare($sql);
+                $stmt->bind_param("i", $id);
+
+                if ($stmt->execute()) {
+                    sendResponse(200, true, 'View count updated');
+                } else {
+                    throw new Exception('Failed to update view count: ' . $stmt->error);
+                }
+            } elseif ($action === 'like') {
+                $user_id = $_SESSION['user']['user_id'] ?? null;
+
+                if (!$user_id) {
+                    sendResponse(401, false, 'Anda harus login untuk like');
+                }
+
+                // Start transaction
+                $conn->begin_transaction();
+
+                try {
+                    // Check if already liked
+                    $check = $conn->prepare("SELECT id FROM publikasi_likes WHERE id_publikasi = ? AND id_user = ?");
+                    $check->bind_param("ii", $id, $user_id);
+                    $check->execute();
+                    $check->store_result();
+
+                    if ($check->num_rows > 0) {
+                        $conn->rollback();
+                        sendResponse(400, false, 'Anda sudah like publikasi ini');
+                    }
+
+                    // Add like
+                    $insert = $conn->prepare("INSERT INTO publikasi_likes (id_publikasi, id_user) VALUES (?, ?)");
+                    $insert->bind_param("ii", $id, $user_id);
+
+                    if (!$insert->execute()) {
+                        throw new Exception('Failed to insert like: ' . $insert->error);
+                    }
+
+                    // Update counter
+                    $update = $conn->prepare("UPDATE publikasi SET like_count = COALESCE(like_count, 0) + 1 WHERE id = ?");
+                    $update->bind_param("i", $id);
+
+                    if (!$update->execute()) {
+                        throw new Exception('Failed to update like count: ' . $update->error);
+                    }
+
+                    $conn->commit();
+
+                    // Get updated like count
+                    $count = $conn->prepare("SELECT like_count FROM publikasi WHERE id = ?");
+                    $count->bind_param("i", $id);
+                    $count->execute();
+                    $result = $count->get_result();
+                    $like_count = $result->fetch_assoc()['like_count'] ?? 0;
+
+                    sendResponse(200, true, 'Like berhasil', [
+                        'like_count' => $like_count,
+                        'has_liked' => true
+                    ]);
+                } catch (Exception $e) {
+                    $conn->rollback();
+                    throw $e;
+                }
+            } else {
+                sendResponse(400, false, 'Aksi tidak valid');
+            }
+        } catch (Exception $e) {
+            sendResponse(500, false, 'Error processing request: ' . $e->getMessage());
+        }
         break;
 
     default:
-        http_response_code(405); // Method Not Allowed
-        echo json_encode(["success" => false, "message" => "Metode HTTP tidak diizinkan."]);
+        sendResponse(405, false, "Metode HTTP tidak diizinkan.");
         break;
 }
 
 $conn->close();
-?>

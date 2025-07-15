@@ -412,6 +412,62 @@
             clear: both;
         }
 
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal-container {
+            background: white;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 800px;
+            max-height: 90vh;
+            overflow-y: auto;
+            padding: 20px;
+            position: relative;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-header button {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+        }
+
+        .like-btn {
+            background: #1e3a8a;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 15px;
+        }
+
 
         /* Footer Styling */
         footer {
@@ -831,6 +887,87 @@
                 padding: 6px 12px;
             }
         }
+
+        .publikasi-card .delete-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-top: 15px;
+            transition: background 0.3s ease, transform 0.2s ease;
+            float: right;
+        }
+
+        .publikasi-card .delete-btn:hover {
+            background: #c82333;
+            transform: translateY(-2px);
+        }
+
+        .publikasi-meta {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .publikasi-meta span {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            margin: 15px 0;
+            flex-wrap: wrap;
+        }
+
+        .action-btn {
+            background: #1e3a8a;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            transition: background 0.3s ease;
+        }
+
+        .action-btn:hover {
+            background: #0b6cb3;
+        }
+
+        .action-btn i {
+            font-size: 16px;
+        }
+
+        .delete-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            margin-top: 20px;
+            transition: background 0.3s ease;
+        }
+
+        .delete-btn:hover {
+            background: #c82333;
+        }
     </style>
 </head>
 
@@ -923,50 +1060,108 @@
 
             function loadPublikasi() {
                 const container = document.getElementById('publikasi-list');
-                container.innerHTML = ""; // Bersihkan container
+                container.innerHTML = "";
 
                 fetch(API_URL)
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error(`HTTP error! status: ${response.status}`);
-                        }
-                        return response.json();
-                    })
+                    .then(response => response.json())
                     .then(data => {
                         if (data.success && data.data.length > 0) {
                             data.data.forEach(item => {
                                 const card = document.createElement('div');
                                 card.className = "publikasi-card";
-
-                                let lampiranHTML = "<div class='lampiran-list'>";
-                                if (item.gambar_url) {
-                                    lampiranHTML += `<p><a href="${item.gambar_url}" target="_blank">📷 Lihat Gambar</a></p>`;
-                                }
-                                if (item.dokumen_url) {
-                                    lampiranHTML += `<p><a href="${item.dokumen_url}" target="_blank">📄 Unduh Dokumen</a></p>`;
-                                }
-                                if (item.youtube_link) {
-                                    lampiranHTML += `<p><a href="${item.youtube_link}" target="_blank">▶️ Tonton YouTube</a></p>`;
-                                }
-                                lampiranHTML += "</div>";
+                                card.onclick = (e) => {
+                                    // Jika yang diklik bukan tombol delete, tampilkan modal
+                                    if (!e.target.classList.contains('delete-btn')) {
+                                        showDetailPublikasi(item.id, e);
+                                    }
+                                };
 
                                 card.innerHTML = `
                         <h3>${item.judul}</h3>
                         <p class="publikasi-meta">${item.tanggal}</p>
-                        <p>${item.isi.replace(/\n/g,'<br>')}</p>
-                        ${lampiranHTML}
-                        <button class="delete-btn" onclick="hapusPublikasi(${item.id})">Hapus</button>
+                        <p>${item.isi.substring(0, 100)}...</p>
+                        <button class="delete-btn" onclick="hapusPublikasi(${item.id}, event)">Hapus</button>
                     `;
                                 container.appendChild(card);
                             });
                         } else {
-                            container.innerHTML = "<p style='text-align:center; color:#555; padding:20px;'>Belum ada publikasi yang ditambahkan.</p>";
+                            container.innerHTML = "<p>Belum ada publikasi</p>";
                         }
-                    })
-                    .catch(error => {
-                        console.error("Error fetching publikasi:", error);
-                        container.innerHTML = `<p style='text-align:center; color:red; padding:20px;'>Gagal memuat publikasi: ${error.message}. Coba refresh halaman atau periksa koneksi server.</p>`;
                     });
+            }
+
+            function closeModal() {
+                const modal = document.getElementById('publikasiModal');
+                if (modal) modal.remove();
+                loadPublikasi(); // Refresh list setelah menutup modal
+            }
+
+            function showDetailPublikasi(id, event) {
+                if (event) {
+                    event.stopPropagation();
+                }
+
+                fetch(`${API_URL}?id=${id}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            const item = data.data[0];
+
+                            // Buat tombol untuk gambar jika ada
+                            const gambarButton = item.gambar_url ?
+                                `<button class="action-btn" onclick="window.open('${item.gambar_url}', '_blank')">
+                        <i class="fas fa-image"></i> Lihat Foto
+                    </button>` : '';
+
+                            // Buat tombol untuk dokumen jika ada
+                            const dokumenButton = item.dokumen_url ?
+                                `<button class="action-btn" onclick="window.open('${item.dokumen_url}', '_blank')">
+                        <i class="fas fa-file-pdf"></i> Lihat Dokumen
+                    </button>` : '';
+
+                            // Buat embed YouTube jika ada
+                            const youtubeEmbed = item.youtube_link ?
+                                `<div style="margin-top:15px;">
+                        <iframe width="100%" height="315" src="https://www.youtube.com/embed/${extractYouTubeID(item.youtube_link)}" frameborder="0" allowfullscreen></iframe>
+                    </div>` : '';
+
+                            const modal = `
+                    <div class="modal-overlay active" id="publikasiModal">
+                        <div class="modal-container">
+                            <div class="modal-header">
+                                <h3>${item.judul}</h3>
+                                <button onclick="closeModal()">&times;</button>
+                            </div>
+                            <div class="modal-body">
+                                <p class="publikasi-meta">${item.tanggal} <span><i class="fas fa-eye"></i> ${item.view_count || 0}</span> | 
+        <span><i class="fas fa-heart"></i> ${item.like_count || 0}</span></p>
+                                <p>${item.isi.replace(/\n/g,'<br>')}</p>
+                                
+                                <div class="action-buttons">
+                                    ${gambarButton}
+                                    ${dokumenButton}
+                                </div>
+                                
+                                ${youtubeEmbed}
+                                
+                                <button class="delete-btn" onclick="hapusPublikasi(${item.id}, event)">
+                                    <i class="fas fa-trash"></i> Hapus Publikasi
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                            document.body.insertAdjacentHTML('beforeend', modal);
+                        }
+                    });
+            }
+
+            // Fungsi untuk mengekstrak ID dari link YouTube
+            function extractYouTubeID(url) {
+                const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+                const match = url.match(regExp);
+                return (match && match[2].length === 11) ? match[2] : null;
             }
 
             function tambahPublikasi() {
@@ -1110,10 +1305,7 @@
 
             function logout() {
                 if (confirm("Yakin ingin logout?")) {
-                    // Jika Anda memiliki sistem autentikasi berbasis sesi/token,
-                    // Anda mungkin perlu memanggil API logout di backend juga.
-                    localStorage.clear(); // Hapus semua data Local Storage
-                    window.location.href = "index.html"; // ganti ke halaman loginmu
+                    window.location.href = "logout.php";
                 }
             }
         </script>

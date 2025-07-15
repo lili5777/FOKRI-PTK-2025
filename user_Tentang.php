@@ -1048,10 +1048,7 @@
     <script>
         function logout() {
             if (confirm("Yakin ingin logout?")) {
-                // Jika Anda memiliki sistem autentikasi berbasis sesi/token,
-                // Anda mungkin perlu memanggil API logout di backend juga.
-                localStorage.clear(); // Hapus semua data Local Storage
-                window.location.href = "index.html"; // ganti ke halaman loginmu
+                window.location.href = "logout.php";
             }
         }
     </script>

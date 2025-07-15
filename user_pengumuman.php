@@ -1228,12 +1228,7 @@
         // Fungsi logout untuk pengguna
         function logout() {
             if (confirm("Yakin ingin logout?")) {
-                // Logika untuk membersihkan sesi di sisi klien (misalnya token JWT, dll.)
-                // Ini biasanya melibatkan penghapusan token dari localStorage atau cookies.
-                // Contoh: localStorage.removeItem('authToken');
-
-                // Kemudian arahkan ke halaman login
-                window.location.href = "index.html"; // Sesuaikan dengan halaman login Anda
+                window.location.href = "logout.php";
             }
         }
     </script>

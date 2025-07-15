@@ -1338,10 +1338,7 @@
         // Logout Function
         function logout() {
             if (confirm("Yakin ingin logout?")) {
-                // Asumsi logout memanggil API backend untuk menghapus sesi, dll.
-                // Untuk saat ini, kita hanya membersihkan localStorage dan redirect.
-                localStorage.clear();
-                window.location.href = "index.html"; // ganti ke halaman loginmu
+                window.location.href = "logout.php";
             }
         }
     </script>

@@ -780,6 +780,104 @@
                 font-size: 13px;
             }
         }
+
+        /* Tambahkan di bagian CSS Anda */
+        .publikasi-stats {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-top: 15px;
+            color: #555;
+            font-size: 14px;
+        }
+
+        .publikasi-stats span {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .like-btn {
+            background: none;
+            border: none;
+            color: #555;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .like-btn:hover {
+            color: #e74c3c;
+        }
+
+        .like-btn.liked {
+            color: #e74c3c;
+        }
+
+        .like-btn i {
+            font-size: 16px;
+        }
+
+        /* Modal styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 10px;
+            padding: 25px;
+            width: 90%;
+            max-width: 800px;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .close-modal {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+        }
+
+        .modal-body {
+            margin-top: 15px;
+            line-height: 1.6;
+        }
+
+        .modal-lampiran {
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px dashed #eee;
+        }
+
+        .modal-lampiran a {
+            display: inline-block;
+            margin-right: 10px;
+            margin-bottom: 10px;
+            color: #1e3a8a;
+            text-decoration: none;
+        }
+
+        .modal-lampiran a:hover {
+            text-decoration: underline;
+        }
     </style>
 </head>
 
@@ -869,6 +967,405 @@
     </div>
 
     <script>
+        // URL ke API PHP Anda
+        const API_URL = 'http://localhost/fokri/api_publikasi.php';
+        const publikasiListContainer = document.getElementById('publikasi-list');
+        const detailModal = document.getElementById('detailModal');
+        const modalJudul = document.getElementById('modalJudul');
+        const modalTanggal = document.getElementById('modalTanggal');
+        const modalIsi = document.getElementById('modalIsi');
+        const modalLampiran = document.getElementById('modalLampiran');
+
+        // Fungsi untuk memformat tanggal
+        function formatTanggal(tanggal) {
+            if (!tanggal) return 'Tanpa tanggal';
+            const options = {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            };
+            return new Date(tanggal).toLocaleDateString('id-ID', options);
+        }
+
+        // Fungsi untuk mengecek status like
+        async function checkLikeStatus(publikasiId) {
+            try {
+                const response = await fetch(`${API_URL}?check-like=1&id=${publikasiId}`, {
+                    method: 'GET',
+                    credentials: 'include'
+                });
+
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+
+                const data = await response.json();
+                return data.data || {
+                    hasLiked: false
+                };
+            } catch (error) {
+                console.error('Error checking like status:', error);
+                return {
+                    hasLiked: false
+                };
+            }
+        }
+
+        // Fungsi untuk menambah view
+        async function tambahView(publikasiId) {
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        id: publikasiId,
+                        action: 'view'
+                    })
+                });
+
+                if (!response.ok) {
+                    console.error('Failed to update view count');
+                }
+            } catch (error) {
+                console.error('Error menambah view:', error);
+            }
+        }
+
+        // Fungsi untuk like publikasi
+        async function tambahLike(publikasiId, event) {
+            event.stopPropagation();
+            const likeBtn = event.target.closest('.like-btn');
+
+            // Prevent double clicking
+            if (likeBtn.disabled) return;
+            likeBtn.disabled = true;
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        id: publikasiId,
+                        action: 'like'
+                    })
+                });
+
+                // Check if response is JSON
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    throw new Error('Response is not JSON. Server might be returning HTML error page.');
+                }
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.message || 'Gagal menambahkan like');
+                }
+
+                if (data.success) {
+                    // Update tombol like - hanya ubah icon jadi merah
+                    likeBtn.classList.add('liked');
+                    likeBtn.innerHTML = `<i class="fas fa-heart" style="color: #e74c3c;"></i> ${data.data.like_count}`;
+
+                    // Update like count di semua card yang sesuai
+                    document.querySelectorAll(`.publikasi-card[data-id="${publikasiId}"] .like-count`)
+                        .forEach(el => el.textContent = data.data.like_count);
+
+                    // Show success message
+                    showNotification('Like berhasil ditambahkan!', 'success');
+                } else {
+                    showNotification(data.message || 'Anda sudah memberikan like sebelumnya', 'warning');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showNotification(`Error: ${error.message}`, 'error');
+            } finally {
+                likeBtn.disabled = false;
+            }
+        }
+
+        // Fungsi untuk menampilkan notifikasi
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 12px 20px;
+        border-radius: 4px;
+        color: white;
+        font-weight: bold;
+        z-index: 10000;
+        opacity: 0;
+        transform: translateX(100%);
+        transition: all 0.3s ease;
+        max-width: 300px;
+        word-wrap: break-word;
+    `;
+
+            // Set color based on type
+            const colors = {
+                success: '#28a745',
+                error: '#dc3545',
+                warning: '#ffc107',
+                info: '#17a2b8'
+            };
+            notification.style.backgroundColor = colors[type] || colors.info;
+
+            notification.textContent = message;
+            document.body.appendChild(notification);
+
+            // Animate in
+            setTimeout(() => {
+                notification.style.opacity = '1';
+                notification.style.transform = 'translateX(0)';
+            }, 100);
+
+            // Remove after 3 seconds
+            setTimeout(() => {
+                notification.style.opacity = '0';
+                notification.style.transform = 'translateX(100%)';
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.parentNode.removeChild(notification);
+                    }
+                }, 300);
+            }, 3000);
+        }
+
+        // Fungsi untuk menampilkan modal detail
+        function showDetailModal(publikasiId) {
+            // Tambah view count
+            tambahView(publikasiId);
+
+            // Ambil detail publikasi
+            fetch(`${API_URL}?id=${publikasiId}`, {
+                    credentials: 'include'
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.success && data.data.length > 0) {
+                        const item = data.data[0];
+
+                        // Isi modal
+                        modalJudul.textContent = item.judul || 'Judul tidak tersedia';
+                        modalTanggal.textContent = formatTanggal(item.tanggal);
+                        modalIsi.innerHTML = item.isi ? item.isi.replace(/\n/g, '<br>') : 'Konten tidak tersedia';
+
+                        // Buat lampiran
+                        modalLampiran.innerHTML = '';
+                        if (item.gambar_url || item.dokumen_url || item.youtube_link) {
+                            const lampiranTitle = document.createElement('h4');
+                            lampiranTitle.textContent = 'Lampiran:';
+                            modalLampiran.appendChild(lampiranTitle);
+
+                            if (item.gambar_url) {
+                                const link = document.createElement('a');
+                                link.href = item.gambar_url;
+                                link.target = '_blank';
+                                link.innerHTML = '<i class="fas fa-image"></i> Lihat Gambar';
+                                modalLampiran.appendChild(link);
+                            }
+
+                            if (item.dokumen_url) {
+                                const link = document.createElement('a');
+                                link.href = item.dokumen_url;
+                                link.target = '_blank';
+                                link.innerHTML = '<i class="fas fa-file-pdf"></i> Unduh Dokumen';
+                                modalLampiran.appendChild(link);
+                            }
+
+                            if (item.youtube_link) {
+                                const link = document.createElement('a');
+                                link.href = item.youtube_link;
+                                link.target = '_blank';
+                                link.innerHTML = '<i class="fab fa-youtube"></i> Tonton di YouTube';
+                                modalLampiran.appendChild(link);
+                            }
+                        }
+
+                        // Tampilkan modal
+                        detailModal.style.display = 'flex';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error mengambil detail publikasi:', error);
+                    showNotification('Gagal memuat detail publikasi', 'error');
+                });
+        }
+
+        // Fungsi untuk menutup modal
+        function closeDetailModal() {
+            detailModal.style.display = 'none';
+        }
+
+        // Fungsi untuk render publikasi dengan status like
+        async function renderPublikasi(publikasiItems) {
+            publikasiListContainer.innerHTML = "";
+
+            for (const item of publikasiItems) {
+                const card = document.createElement('div');
+                card.className = "publikasi-card";
+                card.setAttribute('data-id', item.id);
+                card.onclick = (e) => {
+                    if (!e.target.closest('.like-btn')) {
+                        showDetailModal(item.id);
+                    }
+                };
+
+                // Check like status
+                const likeStatus = await checkLikeStatus(item.id);
+                const heartIcon = likeStatus.hasLiked ? 'fas fa-heart' : 'far fa-heart';
+                const heartColor = likeStatus.hasLiked ? 'style="color: #e74c3c;"' : '';
+                const likeClass = likeStatus.hasLiked ? 'like-btn liked' : 'like-btn';
+
+                card.innerHTML = `
+            <h3>${item.judul}</h3>
+            <div class="publikasi-meta">
+                ${formatTanggal(item.tanggal)} | 
+                👁️ ${item.view_count || 0} | 
+            </div>
+            <p>${item.isi.substring(0, 100)}...</p>
+            <button class="${likeClass}" onclick="tambahLike(${item.id}, event)">
+                <i class="${heartIcon}" ${heartColor}></i> ${item.like_count || 0}
+            </button>
+        `;
+
+                publikasiListContainer.appendChild(card);
+            }
+        }
+
+        // Fungsi untuk memuat publikasi
+        async function loadPublikasi() {
+            publikasiListContainer.innerHTML = `
+        <div style="text-align: center; padding: 20px;">
+            <div class="loading-spinner" style="margin: 0 auto; width: 50px; height: 50px; border: 5px solid #f3f3f3; border-top: 5px solid #1e3a8a; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+            <p style="margin-top: 10px;">Memuat publikasi...</p>
+        </div>
+    `;
+
+            try {
+                const response = await fetch(API_URL, {
+                    credentials: 'include'
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                // Check if response is JSON
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    throw new Error('Response is not JSON. Server might be returning HTML error page.');
+                }
+
+                const data = await response.json();
+
+                if (data && Array.isArray(data.data)) {
+                    if (data.data.length > 0) {
+                        await renderPublikasi(data.data);
+                    } else {
+                        publikasiListContainer.innerHTML = `
+                    <div style="text-align: center; padding: 20px; color: #555;">
+                        <i class="fas fa-info-circle" style="font-size: 24px; margin-bottom: 10px;"></i>
+                        <p>Belum ada publikasi yang tersedia saat ini.</p>
+                    </div>
+                `;
+                    }
+                } else if (Array.isArray(data)) {
+                    if (data.length > 0) {
+                        await renderPublikasi(data);
+                    } else {
+                        publikasiListContainer.innerHTML = `
+                    <div style="text-align: center; padding: 20px; color: #555;">
+                        <i class="fas fa-info-circle" style="font-size: 24px; margin-bottom: 10px;"></i>
+                        <p>Belum ada publikasi yang tersedia saat ini.</p>
+                    </div>
+                `;
+                    }
+                } else {
+                    throw new Error("Format data tidak dikenali");
+                }
+            } catch (error) {
+                console.error("Error fetching publikasi:", error);
+                publikasiListContainer.innerHTML = `
+            <div style="text-align: center; padding: 20px; color: #d32f2f;">
+                <i class="fas fa-exclamation-triangle" style="font-size: 24px; margin-bottom: 10px;"></i>
+                <p>Gagal memuat publikasi: ${error.message}</p>
+                <button onclick="loadPublikasi()" style="margin-top: 10px; padding: 8px 16px; background: #1e3a8a; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                    <i class="fas fa-sync-alt"></i> Coba Lagi
+                </button>
+            </div>
+        `;
+            }
+        }
+
+        // Event listeners
+        if (detailModal) {
+            detailModal.addEventListener('click', (e) => {
+                if (e.target === detailModal) {
+                    closeDetailModal();
+                }
+            });
+        }
+
+        // Logout function
+        function logout() {
+            if (confirm("Yakin ingin logout?")) {
+                window.location.href = "logout.php";
+            }
+        }
+
+        // Load publikasi when page loads
+        document.addEventListener('DOMContentLoaded', loadPublikasi);
+
+        // Add CSS for liked button
+        const style = document.createElement('style');
+        style.textContent = `
+    .like-btn {
+        background-color: #f8f9fa;
+        border: 1px solid #dee2e6;
+        color: #495057;
+        padding: 8px 12px;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    .like-btn:hover {
+        background-color: #e9ecef;
+        border-color: #adb5bd;
+    }
+    .like-btn.liked {
+        background-color: #f8f9fa;
+        border-color: #dee2e6;
+    }
+    .like-btn.liked:hover {
+        background-color: #e9ecef;
+    }
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+`;
+        document.head.appendChild(style);
+    </script>
+
+    <!-- <script>
         // URL ke API PHP Anda
         // Sesuaikan ini jika file api_publikasi.php Anda berada di lokasi yang berbeda
         const API_URL = 'http://localhost/fokri/api_publikasi.php';
@@ -1041,7 +1538,7 @@
                 window.location.href = "index.html"; // ganti ke halaman loginmu
             }
         }
-    </script>
+    </script> -->
 
 </body>
 

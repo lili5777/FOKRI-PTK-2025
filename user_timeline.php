@@ -1239,8 +1239,7 @@
 
         function logout() {
             if (confirm("Yakin ingin logout?")) {
-                localStorage.clear();
-                window.location.href = "index.html";
+                window.location.href = "logout.php";
             }
         }
     </script>
