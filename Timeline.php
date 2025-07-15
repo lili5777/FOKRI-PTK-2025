@@ -1076,12 +1076,16 @@
                     }
                 },
                 eventClick: async function(info) {
+                    // Mencegah perilaku default yang bisa menyebabkan redirect
+                    info.jsEvent.preventDefault();
+
                     const action = prompt(
                         `Kegiatan: ${info.event.title}\n\n` +
                         `Pilih aksi: [H]apus atau [U]bah`, "U"
                     );
 
-                    if (!action) return;
+                    // Jika user menekan cancel atau tidak memilih aksi, keluar dari fungsi
+                    if (action === null) return;
 
                     if (action.toUpperCase() === 'H') {
                         if (confirm(`Yakin menghapus kegiatan "${info.event.title}"?`)) {
@@ -1100,8 +1104,8 @@
 
                                 if (result.success) {
                                     alert('Kegiatan berhasil dihapus!');
-                                    // Redirect ke halaman Timeline setelah delete
-                                    window.location.href = 'Timeline.php';
+                                    // Refresh kalender setelah delete
+                                    calendar.refetchEvents();
                                 } else {
                                     throw new Error(result.message || 'Gagal menghapus kegiatan');
                                 }
@@ -1112,10 +1116,16 @@
                         }
                     } else if (action.toUpperCase() === 'U') {
                         const newTitle = prompt('Judul baru:', info.event.title);
-                        if (!newTitle) return;
+                        // Jika user menekan cancel, keluar dari fungsi
+                        if (newTitle === null) return;
 
                         const newDesc = prompt('Deskripsi baru:', info.event.extendedProps.description || '');
+                        // Jika user menekan cancel, keluar dari fungsi
+                        if (newDesc === null) return;
+
                         const newUrl = prompt('Link lampiran baru:', info.event.url || '');
+                        // Jika user menekan cancel, keluar dari fungsi
+                        if (newUrl === null) return;
 
                         try {
                             const response = await fetch(API_URL, {
@@ -1136,8 +1146,8 @@
 
                             if (result.success) {
                                 alert('Kegiatan berhasil diperbarui!');
-                                // Redirect ke halaman Timeline setelah update
-                                window.location.href = 'Timeline.php';
+                                // Refresh kalender setelah update
+                                calendar.refetchEvents();
                             } else {
                                 throw new Error(result.message || 'Gagal memperbarui kegiatan');
                             }
