@@ -8,6 +8,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css" rel="stylesheet" />
+
     <style>
         /* Reset dan Font Global */
         * {
@@ -868,6 +869,122 @@
             #calendar {
                 padding: 10px;
             }
+
+
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal-container {
+            background-color: white;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+            transform: translateY(-20px);
+            transition: transform 0.3s ease;
+        }
+
+        .modal-overlay.active .modal-container {
+            transform: translateY(0);
+        }
+
+        .modal-header {
+            padding: 20px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-title {
+            font-size: 22px;
+            font-weight: 700;
+            color: #1e3a8a;
+            margin: 0;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #777;
+            transition: color 0.2s ease;
+        }
+
+        .modal-close:hover {
+            color: #333;
+        }
+
+        .modal-body {
+            padding: 20px;
+        }
+
+        .event-date {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+        }
+
+        .event-date i {
+            margin-right: 8px;
+            color: #1e3a8a;
+        }
+
+        .event-description {
+            line-height: 1.6;
+            margin-bottom: 20px;
+            color: #444;
+        }
+
+        .event-link {
+            display: inline-block;
+            padding: 8px 16px;
+            background-color: #1e3a8a;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 500;
+            transition: background-color 0.3s ease;
+        }
+
+        .event-link:hover {
+            background-color: #172b63;
+        }
+
+        @media (max-width: 768px) {
+            .modal-container {
+                width: 95%;
+            }
+
+            .modal-title {
+                font-size: 20px;
+            }
         }
     </style>
 </head>
@@ -911,6 +1028,28 @@
 
                 <div id="bulan-container"></div>
                 <div id="calendar"></div>
+            </div>
+
+            <!-- Modal untuk Detail Event -->
+            <div class="modal-overlay" id="eventModal">
+                <div class="modal-container">
+                    <div class="modal-header">
+                        <h3 class="modal-title" id="modalEventTitle">Judul Event</h3>
+                        <button class="modal-close" id="modalClose">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="event-date" id="modalEventDate">
+                            <i class="fas fa-calendar-alt"></i>
+                            <span>Tanggal Event</span>
+                        </div>
+                        <div class="event-description" id="modalEventDescription">
+                            Deskripsi event akan muncul di sini...
+                        </div>
+                        <!-- <a href="#" target="_blank" class="event-link" id="modalEventLink">
+                            <i class="fas fa-external-link-alt"></i> Lihat Lampiran
+                        </a> -->
+                    </div>
+                </div>
             </div>
 
             <footer>
@@ -1034,25 +1173,58 @@
                     }
                 },
                 eventClick: function(info) {
-                    // Tampilkan detail event
-                    let eventDetails = `<strong>${info.event.title}</strong><br>`;
-                    eventDetails += `<small>${info.event.startStr}</small><br><br>`;
+                    const modal = document.getElementById('eventModal');
+                    const modalTitle = document.getElementById('modalEventTitle');
+                    const modalDate = document.getElementById('modalEventDate');
+                    const modalDesc = document.getElementById('modalEventDescription');
+                    // const modalLink = document.getElementById('modalEventLink');
 
+                    // Isi data modal
+                    modalTitle.textContent = info.event.title;
+
+                    // Format tanggal
+                    const eventDate = new Date(info.event.start);
+                    const options = {
+                        weekday: 'long',
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                    };
+                    modalDate.querySelector('span').textContent = eventDate.toLocaleDateString('id-ID', options);
+
+                    // Deskripsi event
                     if (info.event.extendedProps.description) {
-                        eventDetails += `<p>${info.event.extendedProps.description}</p>`;
+                        modalDesc.textContent = info.event.extendedProps.description;
+                        modalDesc.style.display = 'block';
+                    } else {
+                        modalDesc.style.display = 'none';
                     }
 
-                    if (info.event.url) {
-                        eventDetails += `<a href="${info.event.url}" target="_blank" style="color: #1e3a8a; text-decoration: underline;">Lihat Lampiran</a>`;
-                    }
+                    // Link lampiran
+                    // if (info.event.url) {
+                    //     modalLink.href = info.event.url;
+                    //     modalLink.style.display = 'inline-block';
+                    // } else {
+                    //     modalLink.style.display = 'none';
+                    // }
 
-                    // Gunakan alert yang lebih baik atau modal
-                    Swal.fire({
-                        title: info.event.title,
-                        html: eventDetails,
-                        confirmButtonText: 'Tutup',
-                        confirmButtonColor: '#1e3a8a'
-                    });
+                    // Tampilkan modal
+                    modal.classList.add('active');
+
+                    // Tutup modal ketika klik close button
+                    document.getElementById('modalClose').onclick = function() {
+                        modal.classList.remove('active');
+                    };
+
+                    // Tutup modal ketika klik di luar konten
+                    modal.onclick = function(e) {
+                        if (e.target === modal) {
+                            modal.classList.remove('active');
+                        }
+                    };
+
+                    // Prevent default behavior
+                    info.jsEvent.preventDefault();
                 }
             });
 
